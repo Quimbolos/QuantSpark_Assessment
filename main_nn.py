@@ -56,8 +56,8 @@ def load_data(label):
     features['BusinessTravel'] = features['BusinessTravel'].str.replace('_',' ')
     labels = labels.map({'Yes': 1, 'No': 0})
 
-    features_to_scale = features[columns_to_scale]
-    features_to_encode = features[columns_to_encode]
+    features_to_scale = df[columns_to_scale]
+    features_to_encode = df[columns_to_encode]
 
     # # Label Encoding for Gender / Income / Department / Business Travel 
     # le_gender = preprocessing.LabelEncoder()
@@ -82,7 +82,7 @@ def load_data(label):
 
     # One Hot Encoding Age / Income / Department / Companies worked / Business Travel / Distance from Home / Job Satisfaction / Complaints / Salary Hike / Performance Rating / Total years working / Years at Company / Years Since Last Promotion
 
-    features[columns_to_scale]= scaler.transform(df[columns_to_scale])
+    features_to_scale= scaler.transform(df[columns_to_scale])
 
     # One-hot encode columns
     features[columns_to_encode] = pd.get_dummies(data=features, columns=columns_to_encode).astype(np.int64)
