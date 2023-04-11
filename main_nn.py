@@ -40,19 +40,24 @@ def load_data(label):
     csv_relative_directory = 'Data.csv'
     csv_directory = os.path.join(current_directory, csv_relative_directory)
     df = pd.read_csv(csv_directory)
-
-    scaler = StandardScaler()
     
     # Select Features & Labels
     labels = df[label]
     features = df.drop(['Over18','StandardHours','complaintresolved','complaintyears',label], axis=1)
-    columns_to_encode = ['Department','BusinessTravel', 'complaintfiled','MonthlyIncome']
+    
+    columns_to_encode = ['Gender','Department','BusinessTravel', 'complaintfiled','MonthlyIncome']
     columns_to_scale = ['Age', 'DistanceFromHome','PercentSalaryHike', 'PerformanceRating', 'TotalWorkingYears','YearsAtCompany', 'YearsSinceLastPromotion','NumCompaniesWorked','JobSatisfaction']
+
+    scaler = StandardScaler()
+    scaler.fit(df[columns_to_scale])
 
     # Preprocess the DataSet
     features['MonthlyIncome'] = features['MonthlyIncome'].str.capitalize()
     features['BusinessTravel'] = features['BusinessTravel'].str.replace('_',' ')
     labels = labels.map({'Yes': 1, 'No': 0})
+
+    features_to_scale = features[columns_to_scale]
+    features_to_encode = features[columns_to_encode]
 
     # # Label Encoding for Gender / Income / Department / Business Travel 
     # le_gender = preprocessing.LabelEncoder()
@@ -69,18 +74,18 @@ def load_data(label):
 
     # le_BusinessTravel = preprocessing.LabelEncoder()
     # le_BusinessTravel.fit([ 'Travel Rarely', 'Travel Frequently', 'Non-Travel'])
-    # features['BusinessTravel'] = le_BusinessTravel.transform(features['BusinessTravel']) 
+    # features['BusinessTravel'] = le_BusinessTravel.transform(features['BusinessTravel'])
+    
+    # le_gender = preprocessing.LabelEncoder()
+    # le_gender.fit(['Female','Male'])
+    # features['Gender'] = le_gender.transform(features['Gender']) 
 
     # One Hot Encoding Age / Income / Department / Companies worked / Business Travel / Distance from Home / Job Satisfaction / Complaints / Salary Hike / Performance Rating / Total years working / Years at Company / Years Since Last Promotion
-    
-    le_gender = preprocessing.LabelEncoder()
-    le_gender.fit(['Female','Male'])
-    features['Gender'] = le_gender.transform(features['Gender']) 
 
-    features[columns_to_scale]= scaler.fit(df[columns_to_scale])
+    features[columns_to_scale]= scaler.transform(df[columns_to_scale])
 
     # One-hot encode columns
-    features = pd.get_dummies(data=features, columns=columns_to_encode).astype(np.int64)
+    features[columns_to_encode] = pd.get_dummies(data=features, columns=columns_to_encode).astype(np.int64)
 
     print(features.size)
     print(features.shape)
