@@ -7,12 +7,13 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 
 from sklearn import preprocessing
+from sklearn.preprocessing import StandardScaler
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 import time
 import itertools
 
@@ -40,13 +41,13 @@ def load_data(label):
     csv_directory = os.path.join(current_directory, csv_relative_directory)
     df = pd.read_csv(csv_directory)
 
-    # # Upsampling 
-    # upsampling = df[df['Left'] == 'Yes']
-    # df = pd.concat([df, upsampling], ignore_index=True)
+    scaler = StandardScaler()
     
     # Select Features & Labels
     labels = df[label]
     features = df.drop(['Over18','StandardHours','complaintresolved','complaintyears',label], axis=1)
+    columns_to_encode = ['Department','BusinessTravel', 'complaintfiled','MonthlyIncome']
+    columns_to_scale = ['Age', 'DistanceFromHome','PercentSalaryHike', 'PerformanceRating', 'TotalWorkingYears','YearsAtCompany', 'YearsSinceLastPromotion','NumCompaniesWorked','JobSatisfaction']
 
     # Preprocess the DataSet
     features['MonthlyIncome'] = features['MonthlyIncome'].str.capitalize()
@@ -76,7 +77,7 @@ def load_data(label):
     le_gender.fit(['Female','Male'])
     features['Gender'] = le_gender.transform(features['Gender']) 
 
-    columns_to_encode = ['Age', 'MonthlyIncome', 'Department','BusinessTravel', 'DistanceFromHome', 'complaintfiled','PercentSalaryHike', 'PerformanceRating', 'TotalWorkingYears','YearsAtCompany', 'YearsSinceLastPromotion','NumCompaniesWorked','JobSatisfaction']
+    features[columns_to_scale]= scaler.fit(df[columns_to_scale])
 
     # One-hot encode columns
     features = pd.get_dummies(data=features, columns=columns_to_encode).astype(np.int64)
@@ -85,7 +86,6 @@ def load_data(label):
     print(features.shape)
     print(labels.size)
     print(features.shape)
-
 
     return features, labels
 
@@ -202,7 +202,7 @@ def train(train_dataloader, validation_dataloader, nn_config, epochs=15):
         optimiser = torch.optim.Adagrad(model.parameters(), lr=nn_config['lr'])
 
     # Initialise TensorBoard writer
-    writer = SummaryWriter()
+    # writer = SummaryWriter()
 
     # Start the training_duration timer
     timer_start = time.time()
@@ -231,7 +231,7 @@ def train(train_dataloader, validation_dataloader, nn_config, epochs=15):
             # print('Loss', ls)
 
         # Write the cumulative training loss for each batch
-        writer.add_scalar('training_loss',current_loss / batch_idx , epoch)
+        # writer.add_scalar('training_loss',current_loss / batch_idx , epoch)
         # writer.add_scalar('training_loss',current_loss / batch_idx , epoch)
         # print("Loss avg", current_loss / batch_idx)
 
@@ -259,7 +259,7 @@ def train(train_dataloader, validation_dataloader, nn_config, epochs=15):
                 
 
         # writer.add_scalar('validation_loss', current_loss / batch_idx , epoch)
-        writer.add_scalar('validation_loss', current_loss / batch_idx , epoch)
+        # writer.add_scalar('validation_loss', current_loss / batch_idx , epoch)
 
 
     # End the training_duration timer
@@ -479,9 +479,9 @@ if __name__ == "__main__":
     train_dataset, validation_dataset, test_dataset = random_split(dataset, [0.7, 0.15, 0.15], generator=torch.Generator().manual_seed(42))
 
     # Create DataLoaders
-    train_loader=DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    validation_loader=DataLoader(validation_dataset, batch_size=batch_size, shuffle=True)
-    test_loader=DataLoader(test_dataset, batch_size=batch_size, shuffle=True)   
+    train_loader=DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    validation_loader=DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader=DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True)   
 
     # Call the generte nn configs function to get the list of config dictionaries
     config_dict_list = generate_nn_configs()
