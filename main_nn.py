@@ -40,24 +40,28 @@ def load_data(label):
     csv_relative_directory = 'Data.csv'
     csv_directory = os.path.join(current_directory, csv_relative_directory)
     df = pd.read_csv(csv_directory)
-    
-    # Select Features & Labels
-    labels = df[label]
-    features = df.drop(['Over18','StandardHours','complaintresolved','complaintyears',label], axis=1)
-    
+
     columns_to_encode = ['Gender','Department','BusinessTravel', 'complaintfiled','MonthlyIncome']
     columns_to_scale = ['Age', 'DistanceFromHome','PercentSalaryHike', 'PerformanceRating', 'TotalWorkingYears','YearsAtCompany', 'YearsSinceLastPromotion','NumCompaniesWorked','JobSatisfaction']
 
     scaler = StandardScaler()
-    scaler.fit(df[columns_to_scale])
+    Fit = scaler.fit(df[columns_to_scale])
+
+    # Upsampling 
+    upsampling = df[df['Left'] == 'Yes']
+    df = pd.concat([df, upsampling], ignore_index=True)
+
+    # Select Features & Labels
+    labels = df['Left']
+    features = df.drop(['Over18','StandardHours','complaintresolved','complaintyears','Left'], axis=1)
 
     # Preprocess the DataSet
     features['MonthlyIncome'] = features['MonthlyIncome'].str.capitalize()
     features['BusinessTravel'] = features['BusinessTravel'].str.replace('_',' ')
     labels = labels.map({'Yes': 1, 'No': 0})
 
-    features_to_scale = df[columns_to_scale]
-    features_to_encode = df[columns_to_encode]
+    features_to_scale_ = features[columns_to_scale]
+    features_to_encode = features[columns_to_encode]
 
     # # Label Encoding for Gender / Income / Department / Business Travel 
     # le_gender = preprocessing.LabelEncoder()
@@ -80,17 +84,18 @@ def load_data(label):
     # le_gender.fit(['Female','Male'])
     # features['Gender'] = le_gender.transform(features['Gender']) 
 
-    # One Hot Encoding Age / Income / Department / Companies worked / Business Travel / Distance from Home / Job Satisfaction / Complaints / Salary Hike / Performance Rating / Total years working / Years at Company / Years Since Last Promotion
+    # Scaling features
+    features_to_scale = Fit.transform(features_to_scale_)
+    features_to_scale = pd.DataFrame(features_to_scale, index=features_to_scale_.index, columns=features_to_scale_.columns)
 
-    features_to_scale= scaler.transform(df[columns_to_scale])
+    # One-hot encoding features
+    features_to_encode = pd.get_dummies(data=features_to_encode, columns=columns_to_encode).astype(np.int64)
 
-    # One-hot encode columns
-    features[columns_to_encode] = pd.get_dummies(data=features, columns=columns_to_encode).astype(np.int64)
-
-    print(features.size)
-    print(features.shape)
-    print(labels.size)
-    print(features.shape)
+    # Concat Data
+    features = pd.concat([features_to_scale, features_to_encode], ignore_index=True, axis=1)
+    
+    # print(features.head())
+    # print(features.info())
 
     return features, labels
 
@@ -118,7 +123,7 @@ class NeuralNetwork(torch.nn.Module):
     def __init__(self, nn_config):
         super().__init__()
         self.layers = torch.nn.Sequential()
-        self.layers.add_module("Input Layer", torch.nn.Linear(212, nn_config['hidden_layer_width']))  # Input layer
+        self.layers.add_module("Input Layer", torch.nn.Linear(22, nn_config['hidden_layer_width']))  # Input layer
         self.layers.add_module("ReLU", torch.nn.ReLU())
         for i in range(nn_config['depth'] - 2):
             self.layers.add_module("Hidden Layer", torch.nn.Linear(nn_config['hidden_layer_width'], nn_config['hidden_layer_width']))  # Hidden Layer
@@ -145,9 +150,9 @@ def generate_nn_configs():
     # Parameters to change are: Optimiser, lr, hidden_layer_width and depth
     combinations_dict = {
         'Optimisers':['SGD', 'Adam', 'Adagrad'],
-        'lr':[0.01, 0.001, 0.0001, 0.00001],
-        'hidden_layer_width':[32, 64, 128, 256],
-        'depth':[50,100,150]
+        'lr':[0.01, 0.001, 0.0001],
+        'hidden_layer_width':[16, 32, 64, 128, 256],
+        'depth':[1, 10, 30, 50, 100]
     }
 
     config_dict_list = []
@@ -464,8 +469,8 @@ def find_best_nn(config_dict_list, train_loader, validation_loader, test_loader)
             best_hyperparameters_ = best_hyperparameters
             best_metrics_ = best_metrics
 
-        if i >= 10:  # UNCOMMENT ON FOR TEST
-            break
+        # if i >= 10:  # UNCOMMENT ON FOR TEST
+        #     break
 
     print(best_metrics_, best_hyperparameters_)
 
@@ -493,5 +498,7 @@ if __name__ == "__main__":
 
     # Call the find best nn model function
     best_model_, best_hyperparameters_, best_metrics_ = find_best_nn(config_dict_list, train_loader, validation_loader, test_loader)
+
+# # %%
 
 # %%
